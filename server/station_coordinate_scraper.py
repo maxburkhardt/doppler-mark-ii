@@ -53,7 +53,7 @@ for station in stations:
     # The following is stolen from their javascript
     lat = xcorner-(275*xyperpixel)
     lon = ycorner+(300*xyperpixel)
-    station_coords[station] = (lat, lon)
+    station_coords[station] = (lat, lon, xyperpixel)
 
 print station_coords
 fh = open("station_coordinates.json", "w")
