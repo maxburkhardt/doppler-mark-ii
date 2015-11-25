@@ -6,11 +6,13 @@
   "versionLabel": "1.0",
   "sdkVersion": "3",
   "targetPlatforms": ["basalt", "chalk"],
+  "capabilities": [ "location" ],
   "watchapp": {
     "watchface": true
   },
   "appKeys": {
-    "dummy": 0
+    "KEY_IMAGE": 0,
+    "KEY_LENGTH": 1
   },
   "resources": {
     "media": [

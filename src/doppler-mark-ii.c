@@ -1,10 +1,14 @@
 #include <pebble.h>
-#include <sample.h>
+
+#define KEY_IMAGE 0
+#define KEY_LENGTH 1
 
 static Window *window;
 static TextLayer *text_layer;
 static BitmapLayer *doppler_data_layer;
 static GBitmap *doppler_data;
+static uint8_t *old_image;
+static uint8_t *new_image;
 
 static void window_load(Window *window) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Loading window");
@@ -12,22 +16,22 @@ static void window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
 
   // Debug info about maximum message sizes
+  /*
   char max_inbox[16];
   snprintf(max_inbox, sizeof max_inbox, "%u", (unsigned int) app_message_inbox_size_maximum());
   char max_outbox[16];
   snprintf(max_outbox, sizeof max_outbox, "%u", (unsigned int) app_message_outbox_size_maximum());
   APP_LOG(APP_LOG_LEVEL_DEBUG, max_inbox);
   APP_LOG(APP_LOG_LEVEL_DEBUG, max_outbox);
+  */
 
   // Bitmap Layer
   doppler_data = gbitmap_create_with_resource(RESOURCE_ID_LOADING_SCREEN);
   doppler_data_layer = bitmap_layer_create(bounds);
   bitmap_layer_set_bitmap(doppler_data_layer, doppler_data);
   layer_add_child(window_layer, bitmap_layer_get_layer(doppler_data_layer));
-
-  // TESTING: swap the bitmap layer
-  GBitmap *new_data = gbitmap_create_from_png_data(sample, 3739);
-  bitmap_layer_set_bitmap(doppler_data_layer, new_data);
+  // We create a dummy new_image to make memory management easier
+  new_image = (uint8_t*)malloc(1);
 
   // Text Layer
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 20 } });
@@ -43,6 +47,23 @@ static void window_unload(Window *window) {
   bitmap_layer_destroy(doppler_data_layer);
 }
 
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "Message received!");
+  Tuple *length = dict_find(iterator, KEY_LENGTH);
+  Tuple *data = dict_find(iterator, KEY_IMAGE);
+  int image_len = (int)length->value->int16;
+  char image_len_str[16];
+  snprintf(image_len_str, sizeof image_len_str, "%d", image_len);
+  APP_LOG(APP_LOG_LEVEL_INFO, image_len_str);
+  old_image = new_image;
+  new_image = (uint8_t*)malloc(image_len);
+  memcpy(new_image, data->value->data, image_len);
+  gbitmap_destroy(doppler_data);
+  doppler_data = gbitmap_create_from_png_data(new_image, image_len);
+  bitmap_layer_set_bitmap(doppler_data_layer, doppler_data);
+  free(old_image);
+}
+
 static void init(void) {
   window = window_create();
   window_set_background_color(window, GColorWhite);
@@ -52,6 +73,10 @@ static void init(void) {
   });
   const bool animated = true;
   window_stack_push(window, animated);
+
+  // Initialize message receipt
+  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  app_message_register_inbox_received(inbox_received_callback);
 }
 
 static void deinit(void) {
