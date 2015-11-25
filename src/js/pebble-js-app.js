@@ -34,9 +34,14 @@ function imageGetHandler(resp) {
   }
 }
 
+function watchMessageHandler(payload) {
+  console.log('Sending a new image!');
+  navigator.geolocation.getCurrentPosition(getDopplerImage, locationError, locationOptions); 
+}
+
 Pebble.addEventListener('ready', function(e) {
   console.log('JavaScript app ready and running!');
-
-  //find our location
-  navigator.geolocation.getCurrentPosition(getDopplerImage, locationError, locationOptions);
+  watchMessageHandler(e);
 });
+
+Pebble.addEventListener('appmessage', watchMessageHandler);

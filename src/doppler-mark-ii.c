@@ -35,7 +35,7 @@ static void window_load(Window *window) {
 
   // Text Layer
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 20 } });
-  text_layer_set_text(text_layer, "Hello, world");
+  text_layer_set_text(text_layer, "00:00");
   text_layer_set_text_color(text_layer, GColorBlack);
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
@@ -64,6 +64,29 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   free(old_image);
 }
 
+static void request_new_image() {
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  int value = 1;
+  dict_write_int(iter, 0, &value, sizeof(int), true);
+  app_message_outbox_send();
+}
+
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  static char s_time_buffer[16];
+  if (clock_is_24h_style()) {
+    strftime(s_time_buffer, sizeof(s_time_buffer), "%H:%M", tick_time);
+  } else {
+    strftime(s_time_buffer, sizeof(s_time_buffer), "%I:%M", tick_time);
+  }
+  text_layer_set_text(text_layer, s_time_buffer);
+
+  // Reload the map every 5 minutes
+  if (tick_time->tm_min % 5 == 0) {
+    request_new_image();
+  }
+}
+
 static void init(void) {
   window = window_create();
   window_set_background_color(window, GColorWhite);
@@ -77,6 +100,9 @@ static void init(void) {
   // Initialize message receipt
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
   app_message_register_inbox_received(inbox_received_callback);
+
+  // Initialize tick handler
+  tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 
 static void deinit(void) {
